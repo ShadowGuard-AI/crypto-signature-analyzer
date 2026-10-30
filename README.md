@@ -63,7 +63,7 @@ Output for the second example (both signatures share `r` = 0xaaaa):
 }
 ```
 
-With no input the tool prints `No signatures provided for analysis. Use -f/--file or -s/--signatures.`
+With no input the tool prints `No signatures provided for analysis. Use -f/--file or -s/--signatures.` and exits 1. The exit code is 1 for bad input generally (a missing file, malformed JSON, a JSON value that is not a list of signatures, or a non-hex signature); a completed verification exits 0 whether the signature is valid or not, and a completed scan exits 0.
 
 ## Limitations
 

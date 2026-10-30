@@ -1,13 +1,11 @@
 import argparse
 import logging
-import os
+import sys
 import json
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, hmac
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 import binascii
 
@@ -42,6 +40,13 @@ def load_signatures_from_file(file_path):
     try:
         with open(file_path, 'r') as f:
             signatures = json.load(f)
+        # The analysis iterates entries and reads a 'signature' field
+        # from each. A JSON object at the top level iterated as its
+        # keys, so a file holding one object was reported as a scan of
+        # unparseable entries instead of as the wrong shape entirely.
+        if not isinstance(signatures, list):
+            logging.error(f"Expected a JSON list of signatures in file: {file_path}")
+            return None
         return signatures
     except FileNotFoundError:
         logging.error(f"File not found: {file_path}")
@@ -150,6 +155,9 @@ def verify_signature(public_key_pem, message, signature, algorithm="ecdsa"):
 def main():
     """
     Main function to parse arguments, load signatures, analyze them, and output results.
+    Returns 0 for a completed verification or analysis and 1 for bad
+    input or a failed load. A signature that does not verify is a
+    completed verification: it prints INVALID and still returns 0.
     """
     args = setup_argparse()
 
@@ -162,18 +170,21 @@ def main():
     if args.signature_file:
         signatures = load_signatures_from_file(args.signature_file)
         if signatures is None:
-            return  # Exit if loading fails
+            return 1  # Exit if loading fails
 
     # Load signatures from JSON string if specified
     elif args.signatures_json:
         try:
             signatures = json.loads(args.signatures_json)
+            if not isinstance(signatures, list):
+                logging.error("Expected a JSON list of signatures.")
+                return 1
         except json.JSONDecodeError:
             logging.error("Invalid JSON format in signatures string.")
-            return
+            return 1
         except Exception as e:
              logging.error(f"Error parsing signatures JSON: {e}")
-             return
+             return 1
 
     # If signature verification is requested
     if args.public_key and args.message and args.signature:
@@ -189,23 +200,27 @@ def main():
                 print("Signature is VALID.")
             else:
                 print("Signature is INVALID.")
+            return 0
 
         except FileNotFoundError:
             logging.error(f"Public key file not found: {args.public_key}")
-            return
+            return 1
         except Exception as e:
             logging.error(f"Error during signature verification: {e}")
-            return
+            return 1
 
     elif signatures:
         if args.algorithm == "ecdsa":
             analysis_results = analyze_ecdsa_signatures(signatures)
             print(json.dumps(analysis_results, indent=4))
+            return 0
         else:
             print("Analysis only available for ECDSA signatures.")
+            return 1
     else:
         print("No signatures provided for analysis. Use -f/--file or -s/--signatures.")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
