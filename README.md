@@ -1,3 +1,5 @@
+![Banner](banner.png)
+
 # crypto-signature-analyzer
 
 A command line tool with two jobs: verify one ECDSA or EdDSA signature against a PEM public key, and scan a collection of ECDSA signatures for nonce reuse (the same `r` value appearing in more than one signature, a known key compromise risk).
