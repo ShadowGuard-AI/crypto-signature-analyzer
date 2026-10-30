@@ -54,6 +54,28 @@ def load_signatures_from_file(file_path):
         return None
 
 
+def extract_r(signature):
+    """
+    Extract the ECDSA r value from a hex encoded signature.
+
+    Accepts DER encoded signatures (the format verify_signature expects)
+    and raw r||s concatenations. Returns None if the value cannot be parsed.
+    """
+    try:
+        raw = binascii.unhexlify(signature.strip())
+    except Exception:
+        return None
+    try:
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+        r, _s = decode_dss_signature(raw)
+        return r
+    except Exception:
+        pass
+    if len(raw) >= 2 and len(raw) % 2 == 0:
+        return int.from_bytes(raw[:len(raw) // 2], "big")
+    return None
+
+
 def analyze_ecdsa_signatures(signatures):
     """
     Analyzes ECDSA signatures for common vulnerabilities (e.g., nonce reuse).
@@ -64,21 +86,23 @@ def analyze_ecdsa_signatures(signatures):
     """
     results = {"nonce_reuse": False, "signature_count": len(signatures)}
     nonces = set()
+    parsed = 0
     for signature_data in signatures:
         try:
-            signature = signature_data['signature']
-            # Assuming signature is in DER format (r, s)
-            r = int(signature[:len(signature)//2], 16)
+            r = extract_r(signature_data['signature'])
+            if r is None:
+                logging.warning("Skipping unparseable signature entry.")
+                continue
+            parsed += 1
+            if r in nonces:
+                results["nonce_reuse"] = True
             nonces.add(r)
-
         except Exception as e:
             logging.warning(f"Error processing signature: {e}")
             continue
-
-    if len(nonces) < len(signatures):
-        results["nonce_reuse"] = True
+    results["parsed_count"] = parsed
+    if results["nonce_reuse"]:
         logging.warning("Potential nonce reuse detected in ECDSA signatures.")
-
     return results
 
 
