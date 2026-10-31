@@ -13,6 +13,13 @@ import binascii
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+class VerificationError(Exception):
+    """Raised when no verification could be performed, for example
+    because the public key cannot be loaded or does not match the
+    chosen algorithm. This is distinct from a signature that was
+    checked and did not verify."""
+
+
 def setup_argparse():
     """
     Sets up the argument parser for the command-line interface.
@@ -122,7 +129,12 @@ def verify_signature(public_key_pem, message, signature, algorithm="ecdsa"):
         algorithm (str, optional): The signature algorithm (ecdsa or eddsa). Defaults to "ecdsa".
 
     Returns:
-        bool: True if the signature is valid, False otherwise.
+        bool: True if the signature is valid, False if it was checked
+        and did not verify.
+
+    Raises:
+        VerificationError: If the public key cannot be loaded or does
+        not match the chosen algorithm, so no verification took place.
     """
     try:
         public_key = serialization.load_pem_public_key(
@@ -142,14 +154,16 @@ def verify_signature(public_key_pem, message, signature, algorithm="ecdsa"):
             return True
         else:
             logging.error(f"Unsupported algorithm: {algorithm}")
-            return False
+            raise VerificationError(f"Unsupported algorithm: {algorithm}")
 
     except InvalidSignature:
         logging.warning("Signature verification failed.")
         return False
+    except VerificationError:
+        raise
     except Exception as e:
         logging.error(f"Error during signature verification: {e}")
-        return False
+        raise VerificationError(f"Error during signature verification: {e}") from e
 
 
 def main():
@@ -158,6 +172,9 @@ def main():
     Returns 0 for a completed verification or analysis and 1 for bad
     input or a failed load. A signature that does not verify is a
     completed verification: it prints INVALID and still returns 0.
+    A scan that parses no signature and a verification that could
+    not be performed because the key cannot be loaded or does not
+    match the chosen algorithm both return 1.
     """
     args = setup_argparse()
 
@@ -194,7 +211,12 @@ def main():
 
             message = args.message.encode('utf-8')
             signature = binascii.unhexlify(args.signature)
-            is_valid = verify_signature(public_key_pem, message, signature, args.algorithm)
+            try:
+                is_valid = verify_signature(public_key_pem, message, signature, args.algorithm)
+            except VerificationError as e:
+                logging.error(f"Signature verification could not be performed: {e}")
+                print("Error: Signature verification could not be performed. The public key could not be loaded or does not match the chosen algorithm.")
+                return 1
 
             if is_valid:
                 print("Signature is VALID.")
@@ -212,6 +234,10 @@ def main():
     elif signatures:
         if args.algorithm == "ecdsa":
             analysis_results = analyze_ecdsa_signatures(signatures)
+            if analysis_results["parsed_count"] == 0:
+                logging.error("No signature in the collection could be parsed.")
+                print("Error: No signature in the collection could be parsed.")
+                return 1
             print(json.dumps(analysis_results, indent=4))
             return 0
         else:
