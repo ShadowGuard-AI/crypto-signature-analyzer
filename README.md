@@ -74,3 +74,9 @@ With no input the tool prints `No signatures provided for analysis. Use -f/--fil
 ## License
 
 Copyright (c) ShadowGuardAI
+
+## Diagrams and maps
+
+I drew the tool out in [crypto-signature-analyzer-Visuals](crypto-signature-analyzer-Visuals/): an architecture diagram, a data-flow diagram for the scan, a flowchart of main(), and a product map, with the written product map, statistics with citations, and the roadmap in [VISUAL.md](crypto-signature-analyzer-Visuals/VISUAL.md). Every sheet also ships as a PNG photograph of the paper page beside its SVG.
+
+![Signature analyzer architecture](crypto-signature-analyzer-Visuals/architecture.svg)
