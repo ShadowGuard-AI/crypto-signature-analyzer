@@ -83,6 +83,11 @@ def extract_r(signature):
         return r
     except Exception:
         pass
+    # Fallback shape: half the bytes are taken as r. That is right for
+    # a raw r||s value of even length, but it also means a malformed
+    # DER value that failed the decode above can still yield a number
+    # here, and that number then takes part in the reuse comparison as
+    # if it had been parsed cleanly.
     if len(raw) >= 2 and len(raw) % 2 == 0:
         return int.from_bytes(raw[:len(raw) // 2], "big")
     return None
@@ -97,6 +102,11 @@ def analyze_ecdsa_signatures(signatures):
         dict: A dictionary of analysis results.
     """
     results = {"nonce_reuse": False, "signature_count": len(signatures)}
+    # Only r values are compared. The public key and message in each
+    # entry are never read here, so the same r under two different keys
+    # is reported as reuse even though reused nonces only endanger
+    # signatures made under one key. Read a positive result as a prompt
+    # to check whether the entries share a key, not as proof by itself.
     nonces = set()
     parsed = 0
     for signature_data in signatures:
@@ -204,6 +214,9 @@ def main():
              return 1
 
     # If signature verification is requested
+    # This branch wins over the analysis below whenever all three
+    # values are present, even if a signatures file was also loaded
+    # above. The loaded collection is then simply never used.
     if args.public_key and args.message and args.signature:
         try:
             with open(args.public_key, 'r') as f:
