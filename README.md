@@ -12,7 +12,7 @@ A command line tool with two jobs: verify one ECDSA or EdDSA signature against a
 ## Install
 
 ```bash
-git clone https://github.com/ShadowGuardAI/crypto-signature-analyzer.git
+git clone https://github.com/ShadowGuard-AI/crypto-signature-analyzer.git
 cd crypto-signature-analyzer
 pip install -r requirements.txt
 ```
