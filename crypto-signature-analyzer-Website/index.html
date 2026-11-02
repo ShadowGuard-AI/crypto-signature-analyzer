@@ -1,164 +1,102 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crypto Signature Analyzer: what it is, how it runs, where it stops</title>
-<meta name="description" content="Crypto Signature Analyzer is one of my projects. The README in the repo is short, so this page sticks to what the files themselves show.">
-<style>
-:root {
-  --bg: #e8dec4; --panel: #f4ecd6; --ink: #183636;
-  --mut: #ffffff;
-  --acc: #147a72; --acc2: #c65434;
-  --line: #f4ecd6;
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>crypto-signature-analyzer: The Sap Tap Sugar Shack</title>
+<style>@font-face{font-family:Disp;src:url(fonts/Blinker.ttf)}@font-face{font-family:TextF;src:url(fonts/Barlow.ttf)}
+body{background:#2e2016;font-family:TextF,sans-serif;color:#221a12;margin:0}main{max-width:920px;margin:0 auto;padding:28px}h1,h2{font-family:Disp,sans-serif;color:#7d8f57}section{background:#dfe3d8;padding:18px 22px;margin:16px 0;border-left:8px solid #5a6b3f}img{max-width:100%}button{background:#dfe3d8;color:#5b4030;border:2px solid #5a6b3f;padding:10px 16px;margin:4px;font-family:Disp,sans-serif}.flagged{color:#a51f2d;font-weight:bold}pre{white-space:pre-wrap}</style></head><body><main>
+<img src="intro-banner.png" alt="Near depth: one bucket close and the drop forming at its spile. Middle depth: the row of tapped trunks with buckets at uneven fullness. Far depth: the shack with its door shut, steam climbing from the vent, cordwood stacked, snow pocked where feet have passed all season. No lettering, no board, no name.">
+<h1>crypto-signature-analyzer: The Sap Tap Sugar Shack</h1>
+<p>Theme: The Sap Tap Sugar Shack. Headings in Blinker, reading text in Barlow.</p>
+<img src="logo.png" alt="One tin bucket hanging from a spile driven into a maple trunk, a single drop at the spile mouth inked berry red, fern silver on the tin, and the tally board below chalked with the name"><img src="banner.png" alt="Late winter at the sugar shack: bare maples with buckets at uneven fullness, the timber shack right of centre with steam rising from the evaporator vent, cordwood under the eave, a tasting ladle on the evaporator rim, and the title chalked on the tally board beside the shack door, the only lettering in the scene">
+<img src="scene.svg" alt="The grove in three depths: far, the shack and trunks with steam rising and thinning; middle, the bucket row where drops form at spiles at uneven rates, swell, and fall; near, the nearest spile and its drop, large and slow, swelling over a long count before it falls">
+<div><button type="button">Test This Signature</button><button type="button">Hunt the Repeated r</button></div>
+<h2>ECDSA Unless EdDSA Is Chosen</h2><h2>SHA-256, Not open to Choice</h2><h2>Counted, Parsed, Compared on r alone</h2>
+<section><h2>The Two Jobs</h2><p>Job one: verify one signature. The caller gives a PEM public key file, a message, and a hex encoded signature, and chooses ecdsa or eddsa. ECDSA checking presumes DER encoded signatures and SHA-256. EdDSA checking works with Ed25519 keys. Job two: scan a collection. The caller gives a JSON file or a JSON string holding a list of signature objects, and the tool hunts for the same ECDSA r value appearing more than once.</p></section>
+<section><h2>The Single Check</h2><p>Form: python3 main.py -k public.pem -m MESSAGE -sig HEXSIGNATURE -alg ecdsa, with every value named by kind and no real signature, key, or message of worth written on this page. Two printed outcomes stand under the form. Signature is VALID. Signature is INVALID. An invalid result is a finished check and exits 0, while a key that cannot be loaded, or a key that does not match the chosen algorithm, means no check took place at all; the tool says verification could not be performed and exits 1.</p></section>
+<section><h2>The Collection Scan</h2><p>Form: python3 main.py -f signatures.json, or the same run with -s followed by a JSON string. The result shape in full: a JSON object holding nonce_reuse, signature_count, and parsed_count. The README example result, in kind only: two signatures, two parsed, reuse found. A no reuse result means something only when parsed_count is greater than zero, and a non empty collection in which nothing parses prints an error and exits 1 rather than reporting no reuse.</p></section>
+<section><h2>Endings</h2><p>No input at all prints the line telling the caller to use -f or -s, and exits 1. A missing file exits 1. Malformed JSON exits 1. A JSON value that is not a list exits 1. A non hex signature in the single check exits 1. A finished verification exits 0, valid or invalid. A finished scan that parsed at least one signature exits 0. With -alg eddsa and a collection, the tool prints that analysis is only available for ECDSA and exits 1.</p></section>
+<section><h2>Licence</h2><p>The README licence line is shown as printed in the record below and flagged here in place: it names the organisation in an unhyphenated form. The separate LICENSE file holds the MIT License. The two stand side by side without reconciliation.</p></section>
+
+<section><h2>Code Facts Restored from the Code</h2><p>The scan compares r values only; the public key and message inside each collection entry are never read, so the same r under two different keys is reported as reuse, and a positive result is a prompt to check whether the entries share a key.</p><p>A signature value that fails DER decoding can still yield an r from its first half of bytes when its length is even, and that number then takes part in the comparison as if cleanly parsed.</p><p>The single verification branch wins outright: when key, message, and signature are all present, any collection already loaded from a file is never used; the two jobs cannot run together.</p><p>The parser help for the file argument claims each entry should include signature, message, and public key keys; the scan reads the signature field alone, and the README states that one field correctly.</p></section>
+<section><h2>The Preserved Record</h2><pre># crypto-signature-analyzer
+
+A command line tool with two jobs: verify one ECDSA or EdDSA signature against a PEM public key, and scan a collection of ECDSA signatures for nonce reuse (the same `r` value appearing in more than one signature, a known key compromise risk).
+
+## Requirements
+
+- Python 3.10 or later
+- `cryptography` 41.0.0 or later
+
+## Install
+
+```bash
+git clone https://github.com/ShadowGuard-AI/crypto-signature-analyzer.git
+cd crypto-signature-analyzer
+pip install -r requirements.txt
+```
+
+## Usage
+
+```
+python3 main.py [-h] [-f SIGNATURE_FILE] [-s SIGNATURES_JSON] [-k PUBLIC_KEY]
+                [-m MESSAGE] [-sig SIGNATURE] [-alg {ecdsa,eddsa}] [-v]
+```
+
+- `-f`, `--file`: path to a JSON file containing a list of signature objects
+- `-s`, `--signatures`: JSON string containing a list of signature objects
+- `-k`, `--public_key`: path to a PEM encoded public key file
+- `-m`, `--message`: message associated with the signature
+- `-sig`, `--signature`: signature to verify, hex encoded
+- `-alg`, `--algorithm`: `ecdsa` (default) or `eddsa`
+- `-v`, `--verbose`: enable verbose output
+- `-h`: show help and exit
+
+### Verify a single signature
+
+All three of `-k`, `-m`, and `-sig` are required. ECDSA verification assumes DER encoded signatures and SHA-256. EdDSA verification works with Ed25519 keys.
+
+```bash
+python3 main.py -k public.pem -m &quot;hello world&quot; -sig &lt;hex signature&gt; -alg ecdsa
+# prints: Signature is VALID.
+python3 main.py -k public.pem -m &quot;tampered&quot; -sig &lt;hex signature&gt; -alg ecdsa
+# prints: Signature is INVALID.
+```
+
+`Signature is INVALID.` means the signature was checked and did not verify, and that result exits 0. If the public key cannot be loaded or does not match the chosen algorithm, no verification takes place: the tool prints an error line stating that signature verification could not be performed and exits 1, instead of reporting the signature as invalid.
+
+### Scan a collection for ECDSA nonce reuse
+
+Each list item must have a `signature` field containing a hex encoded signature. Both DER encoded signatures and raw `r||s` concatenations are accepted, and the `r` value is extracted from either format. Unparseable entries are skipped and do not count toward the result.
+
+```bash
+python3 main.py -f signatures.json
+python3 main.py -s &#x27;[{&quot;signature&quot;: &quot;aaaa1111&quot;}, {&quot;signature&quot;: &quot;aaaa2222&quot;}]&#x27;
+```
+
+Output for the second example (both signatures share `r` = 0xaaaa):
+
+```json
+{
+    &quot;nonce_reuse&quot;: true,
+    &quot;signature_count&quot;: 2,
+    &quot;parsed_count&quot;: 2
 }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font-family: 'Palatino Linotype', Palatino, serif; line-height: 1.55; }
-code, pre, .mono { font-family: 'Menlo', monospace; }
-a { color: var(--acc2); }
-.hero { padding: 3rem 6vw 1rem; }
-.hero img.banner { width: 100%; height: auto; border: 1px solid var(--line);
-  border-radius: 10px; }
-.logo { width: 92px; height: 92px; border-radius: 18px;
-  border: 1px solid var(--line); }
-h1 { font-size: 2.4rem; margin: 0.4em 0 0.1em; }
-h2 { border-bottom: 2px solid var(--acc); padding-bottom: 0.2em;
-  margin-top: 2em; }
-.lede { font-size: 1.15rem; max-width: 62ch; }
-main { padding: 0 6vw 3rem; max-width: 1180px; margin: 0 auto; }
-.grid { display: grid; gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-.card { background: var(--panel); border: 1px solid var(--line);
-  border-radius: 12px; padding: 1rem 1.2rem; }
-.card.pop { animation: rise 0.7s ease both; }
-@keyframes rise { from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; } }
-pre.code { background: #101014; color: #e8e6df; padding: 1rem 1.2rem;
-  border-radius: 12px; overflow-x: auto; font-size: 0.86rem;
-  border-left: 5px solid var(--acc); }
-table { border-collapse: collapse; width: 100%; }
-td, th { border-bottom: 1px solid var(--line); padding: 0.45rem 0.6rem;
-  text-align: left; }
-.shots { display: grid; gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.shots img { width: 100%; height: auto; border: 1px solid var(--line);
-  border-radius: 10px; background: #f4f1e8; }
-footer { padding: 2rem 6vw; border-top: 1px solid var(--line);
-  color: var(--mut); }
-.rail { display: flex; gap: 1.2rem; align-items: flex-start; }
-.rail nav { position: sticky; top: 1rem; min-width: 180px; }
-@media (max-width: 760px) { .rail { flex-direction: column; }
-  .rail nav { position: static; } }
-@media (prefers-reduced-motion: reduce) {
-  .card.pop { animation: none; } * { scroll-behavior: auto; } }
-</style>
-</head>
-<body class="layout-term">
-<!-- This page exists for crypto-signature-analyzer alone: the layout (terminal-frame),
-     the colors, and the type were picked for this project, not
-     shared with the other project pages. The code block below is
-     copied from the file it names, line for line. If it looks
-     plain, that is because the project is plain, and I would
-     rather the page match the project than dress it up. The one
-     thing I will not do here is oversell: what this project does
-     not do is stated on the page, not hidden from it. -->
-<header class="hero">
-  <img class="logo" src="assets/logo.png" alt="Crypto Signature Analyzer logo">
-  <img class="banner" src="assets/banner.png" alt="">
-  <h1>Crypto Signature Analyzer</h1>
-  <p class="mono"><a href="https://github.com/ShadowGuard-AI/crypto-signature-analyzer">github.com/ShadowGuard-AI/crypto-signature-analyzer</a></p>
-</header>
+```
 
-<main>
-  <section class="rail">
-    <nav aria-label="on this page">
-      <p class="mono"><a href="#run">Run it</a><br>
-      <a href="#files">The files</a><br>
-      <a href="#sheets">The sheets</a><br>
-      <a href="https://github.com/ShadowGuard-AI/crypto-signature-analyzer">The repo</a></p>
-    </nav>
-    <div>
-      <p class="lede">Crypto Signature Analyzer is one of my projects. The README in the repo is short, so this page sticks to what the files themselves show.</p>
-      <div class="grid">
-        <div class="card pop"><h3>What it is</h3>
-          <p>Crypto Signature Analyzer: 3 files, 209 counted
-          lines across Python 187, Markdown 21, Text 1. One job, done in the
-          open, in files you can read.</p></div>
-        <div class="card pop"><h3>The biggest piece</h3>
-          <p><code>main.py</code> carries the most
-          lines. If the project grows, that file is where the growth
-          lands first, for better or worse.</p></div>
-        <div class="card pop"><h3>The honest gap</h3>
-          <p>No test files yet. That is the honest gap, and the roadmap in the visuals folder says what the first one should cover.</p></div>
-      </div>
-      <section id="run">
-        <h2>Run it</h2>
-        <p>The repo README has the exact commands for this one. The
-        shape is the shape for most of my projects: clone it, read the
-        top file first so you know what will happen, then run it on
-        something you do not mind breaking.</p>
-        <p class="mono">$ git clone https://github.com/ShadowGuard-AI/crypto-signature-analyzer.git<br>$ cd crypto-signature-analyzer</p>
-      </section>
-      
-  <section aria-label="real code">
-    <h2>The code, as it sits in the repo</h2>
-    <p>From <code>main.py</code>, line 124 on. I did
-    not tidy it for the page. What you see is what the file has.</p>
-    <pre class="code"><code>
+The no reuse result is only meaningful when `parsed_count` is greater than zero. If a non-empty collection is scanned and no signature in it can be parsed, the tool prints `Error: No signature in the collection could be parsed.` and exits 1, and it does not print a no reuse verdict for that scan.
 
-def main():
-    &quot;&quot;&quot;
-    Main function to parse arguments, load signatures, analyze them, and output results.
-    &quot;&quot;&quot;
-    args = setup_argparse()
+With no input the tool prints `No signatures provided for analysis. Use -f/--file or -s/--signatures.` and exits 1. The exit code is 1 for bad input generally (a missing file, malformed JSON, a JSON value that is not a list of signatures, or a non-hex signature) and for a public key that cannot be loaded or does not match the chosen algorithm; a completed verification exits 0 whether the signature is valid or not, and a completed scan that parsed at least one signature exits 0.
 
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+## Limitations
 
-    signatures = []
+- Collection analysis is available only for ECDSA. With `-alg eddsa` and a signature list it prints `Analysis only available for ECDSA signatures.`
+- It detects exact `r` reuse only. It does not check for biased nonces, weak randomness short of reuse, or malleability, despite those being related ECDSA risks.
+- ECDSA verification always uses SHA-256; other hash choices are not configurable.
 
-    # Load signatures from file if specified
-    if args.signature_file:
-        signatures = load_signatures_from_file(args.signature_file)
-        if signatures is None:
-            return  # Exit if loading fails
+## License
 
-    # Load signatures from JSON string if specified
-    elif args.signatures_json:
-        try:</code></pre>
-  </section>
-      <section id="files">
-        <h2>The files that matter</h2>
-        <table><tr><th>File</th><th>Lines</th></tr>
-        <tr><td><code>main.py</code></td><td>187</td></tr>
-        <tr><td><code>README.md</code></td><td>21</td></tr>
-        <tr><td><code>requirements.txt</code></td><td>1</td></tr>
-        </table>
-        <p>Names doing the work: <span class="mono">setup_argparse, load_signatures_from_file, analyze_ecdsa_signatures, verify_signature, main</span>.</p>
-      </section>
-      <section id="sheets">
-        <h2>Drawn by hand</h2>
-        <p>I sketch my projects on notebook paper so I have to
-        understand them well enough to draw them. The full set,
-        with the counts and how they were counted, is the
-        <a href="https://github.com/ShadowGuard-AI/crypto-signature-analyzer/tree/main/crypto-signature-analyzer-Visuals">crypto-signature-analyzer-Visuals</a>
-        folder in the repo. Nothing is drawn over the binder holes.
-        That is a rule, not a style.</p>
-        <div class="shots">
-          <img src="assets/architecture.png" alt="Hand drawn architecture sheet for Crypto Signature Analyzer">
-          <img src="assets/flowchart.png" alt="Hand drawn flowchart sheet for Crypto Signature Analyzer">
-          <img src="assets/product-map.png" alt="Hand drawn product map sheet for Crypto Signature Analyzer">
-        </div>
-      </section>
-    </div>
-  </section>
-</main>
-<footer>
-  <p>Crypto Signature Analyzer is one of my projects. This page was written
-  from the repo itself on 2026-10-30: the counts are the
-  repo's counts, the code is the repo's code, and the gaps are the
-  repo's gaps.</p>
-</footer>
-</body>
-</html>
+Copyright (c) ShadowGuardAI
+
+## Diagrams and maps
+
+I drew the tool out in [crypto-signature-analyzer-Visuals](crypto-signature-analyzer-Visuals/): an architecture diagram, a data-flow diagram for the scan, a flowchart of main(), and a product map, with the written product map, statistics with citations, and the roadmap in [VISUAL.md](crypto-signature-analyzer-Visuals/VISUAL.md). Every sheet also ships as a PNG photograph of the paper page beside its SVG.
+
+![Signature analyzer architecture](crypto-signature-analyzer-Visuals/architecture.svg)</pre></section>
+</main></body></html>
